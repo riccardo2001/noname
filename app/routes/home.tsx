@@ -58,14 +58,14 @@ export default function Home() {
 
         <h1
           data-text="NONAME"
-          className="glitch rise mt-6 font-serif text-7xl font-semibold tracking-[0.18em] text-(--color-bone) sm:text-8xl"
+          className="glitch rise mt-5 font-serif text-6xl font-semibold tracking-[0.18em] text-(--color-bone) sm:text-7xl"
           style={{ animationDelay: "0.15s" }}
         >
           NONAME
         </h1>
 
         <p
-          className="rise mt-8 max-w-xl font-serif text-xl leading-relaxed text-(--color-ash) italic sm:text-2xl"
+          className="rise mt-6 max-w-lg font-serif text-lg leading-relaxed text-(--color-ash) italic"
           style={{ animationDelay: "0.5s" }}
         >
           Un labirinto che si ridisegna a ogni passo. Ogni scelta scende più in
@@ -74,7 +74,7 @@ export default function Home() {
         </p>
 
         <div
-          className="rise mt-14 flex w-full max-w-sm flex-col gap-3"
+          className="rise mt-10 flex w-full max-w-sm flex-col gap-3"
           style={{ animationDelay: "0.9s" }}
         >
           {hasRun && (
@@ -101,7 +101,7 @@ export default function Home() {
         </div>
 
         <p
-          className="rise mt-16 font-mono text-xs tracking-[0.35em] text-(--color-ash)/60 uppercase"
+          className="rise mt-10 font-mono text-xs tracking-[0.35em] text-(--color-ash)/60 uppercase"
           style={{ animationDelay: "1.3s" }}
         >
           il labirinto non toglie · presta
