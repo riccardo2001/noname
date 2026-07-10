@@ -31,23 +31,40 @@ class Soundtrack {
   private bpm = 46;
   private beatTimer: ReturnType<typeof setTimeout> | null = null;
   private dripTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Prima di questo istante l'hardware sta ancora scaldando: solo silenzio. */
+  private readyAt = 0;
+  private muted = false;
+
+  /** Mai schedulare prima di readyAt: il warm-up del thread audio gracchia. */
+  private tSafe(): number {
+    return this.ctx ? Math.max(this.ctx.currentTime, this.readyAt) : 0;
+  }
 
   /** Da chiamare dentro un gesto utente (click). Idempotente. */
   start() {
     if (this.ctx) {
-      if (this.ctx.state === "suspended") void this.ctx.resume();
+      this.resume();
       return;
     }
     if (typeof window === "undefined" || !("AudioContext" in window)) return;
 
-    const ctx = new AudioContext();
+    // "playback": buffer hardware grandi. La latenza interattiva non ci
+    // serve (audio ambientale) e i buffer piccoli vanno in underrun
+    // all'avvio, quando il main thread è occupato dalla navigazione.
+    const ctx = new AudioContext({ latencyHint: "playback" });
     this.ctx = ctx;
+
+    // Tutto parte 150ms nel futuro: durante il warm-up dell'hardware il
+    // contesto renderizza silenzio, e un glitch nel silenzio non si sente.
+    const t0 = ctx.currentTime + 0.15;
+    this.readyAt = t0;
 
     // Fade-in del master: partire a volume pieno produce una discontinuità
     // nel primo campione — il gracchio che si sente a volte all'avvio.
     this.master = ctx.createGain();
     this.master.gain.setValueAtTime(0, ctx.currentTime);
-    this.master.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.7);
+    this.master.gain.setValueAtTime(0, t0);
+    this.master.gain.linearRampToValueAtTime(0.8, t0 + 0.7);
     this.master.connect(ctx.destination);
 
     /* ---- drone: due fondamentali che battono + una quinta lontana ---- */
@@ -71,7 +88,7 @@ class Soundtrack {
       g.gain.value = vol;
       osc.connect(g);
       g.connect(this.droneGain);
-      osc.start();
+      osc.start(t0);
     }
 
     // respiro lentissimo del drone
@@ -81,7 +98,7 @@ class Soundtrack {
     lfoGain.gain.value = 0.02;
     lfo.connect(lfoGain);
     lfoGain.connect(this.droneGain.gain);
-    lfo.start();
+    lfo.start(t0);
 
     /* ---- rumore marrone: il labirinto che respira ---- */
     const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
@@ -103,7 +120,7 @@ class Soundtrack {
     noise.connect(noiseFilter);
     noiseFilter.connect(this.noiseGain);
     this.noiseGain.connect(this.master);
-    noise.start();
+    noise.start(t0);
 
     /* ---- shimmer: fischio sottile che emerge a lucidità bassa ---- */
     const shimmer = ctx.createOscillator();
@@ -119,8 +136,8 @@ class Soundtrack {
     this.shimmerGain.gain.value = 0;
     shimmer.connect(this.shimmerGain);
     this.shimmerGain.connect(this.master);
-    shimmer.start();
-    vib.start();
+    shimmer.start(t0);
+    vib.start(t0);
 
     this.scheduleBeat();
     this.scheduleDrip();
@@ -131,10 +148,26 @@ class Soundtrack {
   }
 
   resume() {
-    if (this.ctx?.state === "suspended") void this.ctx.resume();
+    if (this.ctx?.state !== "suspended") return;
+    const ctx = this.ctx;
+    // Anche il riavvio dell'hardware dopo una suspend gracchia: si riparte
+    // in silenzio e si riemerge quando il thread audio è di nuovo caldo.
+    void ctx.resume().then(() => {
+      if (!this.master) return;
+      const t = ctx.currentTime;
+      this.readyAt = Math.max(this.readyAt, t + 0.15);
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setValueAtTime(0, t);
+      this.master.gain.setValueAtTime(0, this.readyAt);
+      this.master.gain.linearRampToValueAtTime(
+        this.muted ? 0 : 0.8,
+        this.readyAt + 0.5,
+      );
+    });
   }
 
   setMuted(muted: boolean) {
+    this.muted = muted;
     if (!this.ctx || !this.master) return;
     this.master.gain.setTargetAtTime(muted ? 0 : 0.8, this.ctx.currentTime, 0.3);
   }
@@ -161,10 +194,8 @@ class Soundtrack {
 
   private scheduleBeat() {
     if (!this.ctx) return;
-    // +0.08: su un contesto appena creato currentTime non è ancora avanzato,
-    // e schedulare troppo vicino a "adesso" finisce nel passato → glitch.
-    this.thump(this.ctx.currentTime + 0.08, this.heartVolume);
-    this.thump(this.ctx.currentTime + 0.36, this.heartVolume * 0.6);
+    this.thump(this.tSafe() + 0.08, this.heartVolume);
+    this.thump(this.tSafe() + 0.36, this.heartVolume * 0.6);
     this.beatTimer = setTimeout(() => this.scheduleBeat(), (60 / this.bpm) * 1000);
   }
 
@@ -198,7 +229,7 @@ class Soundtrack {
 
   private drip() {
     if (!this.ctx || !this.master) return;
-    const t = this.ctx.currentTime;
+    const t = this.tSafe();
     const osc = this.ctx.createOscillator();
     osc.type = "sine";
     const base = 1400 + Math.random() * 900;
@@ -222,7 +253,7 @@ class Soundtrack {
     if (!this.ctx || !this.master) return;
     // 30ms nel futuro: impercettibile, ma tiene il primo click (quello che
     // crea il contesto) fuori dalla finestra di avvio del thread audio.
-    const t = this.ctx.currentTime + 0.03;
+    const t = this.tSafe() + 0.03;
 
     const thud = this.ctx.createOscillator();
     thud.type = "triangle";
@@ -258,7 +289,7 @@ class Soundtrack {
   /** Cluster dissonante: l'Entità è nella stanza. */
   sting() {
     if (!this.ctx || !this.master) return;
-    const t = this.ctx.currentTime;
+    const t = this.tSafe();
     for (const freq of [196, 207.65, 277.18]) {
       const osc = this.ctx.createOscillator();
       osc.type = "sawtooth";
@@ -281,7 +312,7 @@ class Soundtrack {
   /** Rintocco funebre per i finali. */
   toll(bright: boolean) {
     if (!this.ctx || !this.master) return;
-    const t = this.ctx.currentTime;
+    const t = this.tSafe();
     const freqs = bright ? [196, 392, 587.33] : [98, 116.54, 196];
     freqs.forEach((freq, i) => {
       const osc = this.ctx!.createOscillator();

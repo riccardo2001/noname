@@ -6,6 +6,7 @@ import { clearRun, loadRun, saveRun } from "../game/storage";
 import { ENDINGS } from "../game/content";
 import { audioPref, getSoundtrack, setAudioPref } from "../game/audio";
 import { loadMeta, loadPrefs, recordRunEnd, savePrefs, type MetaState } from "../game/meta";
+import { Vignette } from "../game/art";
 import {
   FINAL_DEPTH,
   ITEM_LABELS,
@@ -177,7 +178,7 @@ export default function Game() {
           <NodeView
             key={`node-${nodeKey}`}
             node={node}
-            depth={state.depth}
+            state={state}
             typewriter={typewriter}
             onChoose={choose}
           />
@@ -193,12 +194,12 @@ export default function Game() {
 
 function NodeView({
   node,
-  depth,
+  state,
   typewriter,
   onChoose,
 }: {
   node: GameNode;
-  depth: number;
+  state: GameState;
   typewriter: boolean;
   onChoose: (c: Choice) => void;
 }) {
@@ -238,8 +239,11 @@ function NodeView({
 
   return (
     <article onClick={() => !done && setChars(total)}>
+      <div className="rise opacity-90" style={{ animationDelay: "0.1s" }}>
+        <Vignette node={node} state={state} />
+      </div>
       <p className="rise font-mono text-[10px] tracking-[0.45em] text-(--color-ember)/80 uppercase">
-        {node.zone} · profondità {depth}
+        {node.zone} · profondità {state.depth}
       </p>
       <h1
         className="rise mt-2 font-serif text-3xl font-medium tracking-wide text-(--color-bone) sm:text-4xl"
