@@ -46,27 +46,45 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let message = "Il labirinto si è richiuso";
+  let details =
+    "Una parete, dove un attimo fa c'era un corridoio. Succede, qui sotto. Risali in superficie e riprova a scendere.";
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    message = error.status === 404 ? "Questa stanza non esiste" : "Il labirinto si è richiuso";
     details =
       error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
+        ? "Hai bussato a una porta che il labirinto non ha mai costruito. O che ha già digerito."
+        : details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
+    <main className="veil relative flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+      <p className="font-mono text-xs tracking-[0.5em] text-(--color-ash) uppercase">
+        qualcosa è andato storto · o si è storto da solo
+      </p>
+      <h1
+        data-text={message}
+        className="glitch mt-4 font-serif text-4xl font-semibold tracking-wide text-(--color-ember) sm:text-5xl"
+      >
+        {message}
+      </h1>
+      <p className="mt-6 max-w-lg font-serif text-lg leading-relaxed text-(--color-bone)/90 italic">
+        {details}
+      </p>
+      <a
+        href="/"
+        className="choice mt-10 cursor-pointer border border-(--color-smoke) bg-(--color-coal) px-6 py-4 font-mono text-base tracking-widest text-(--color-bone) uppercase"
+      >
+        <span className="choice-marker mr-3">▸</span>
+        risali in superficie
+      </a>
       {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+        <pre className="mt-10 max-h-64 w-full max-w-2xl overflow-auto border border-(--color-smoke) bg-(--color-coal) p-4 text-left font-mono text-xs text-(--color-ash)">
           <code>{stack}</code>
         </pre>
       )}

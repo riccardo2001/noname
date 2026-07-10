@@ -1,5 +1,5 @@
 import { mulberry32, mixSeed, pick, chance, between, randomSeed, type Rng } from "./rng";
-import { ZONES, WHISPERS, ADVANCE_LABELS } from "./content";
+import { ZONES, WHISPERS, ADVANCE_LABELS, RARE_ROOMS, type RareRoom } from "./content";
 import {
   FINAL_DEPTH,
   type Choice,
@@ -8,18 +8,29 @@ import {
   type ItemId,
 } from "./types";
 
-export function newGame(): GameState {
+export interface NewGameOptions {
+  /** Seme esplicito: discesa del giorno o discesa condivisa da un altro giocatore. */
+  seed?: number;
+  /** Data (YYYY-MM-DD) se questa è la discesa del giorno. */
+  dailyDate?: string;
+  /** L'ultima run è finita tra le sue mani: l'Entità ti riconosce. */
+  hauntedByEntity?: boolean;
+}
+
+export function newGame(opts: NewGameOptions = {}): GameState {
   return {
     version: 1,
-    seed: randomSeed(),
+    seed: opts.seed ?? randomSeed(),
     nodeCount: 0,
     depth: 0,
     sanity: 100,
     aggression: 0,
     items: ["lanterna"],
-    flags: [],
+    flags: opts.hauntedByEntity ? ["riconosciuto"] : [],
     status: "alive",
     log: [],
+    entitySeen: 0,
+    dailyDate: opts.dailyDate,
   };
 }
 
@@ -42,10 +53,19 @@ export function generateNode(state: GameState): GameNode {
   const milestone = milestoneNode(state, rng);
   if (milestone) return milestone;
 
+  // La lanterna tiene il buio — e ciò che lo abita — un mezzo passo più in là.
   const entityChance =
-    0.06 + state.aggression * 0.035 + (state.sanity < 40 ? 0.08 : 0);
+    0.06 +
+    state.aggression * 0.035 +
+    (state.sanity < 40 ? 0.08 : 0) -
+    (has(state, "lanterna") ? 0.02 : 0);
   if (state.depth > 4 && chance(rng, Math.min(entityChance, 0.5))) {
     return entityNode(state, rng);
+  }
+
+  // Stanze rare: una ogni cinquanta, circa. Chi le trova ne parla.
+  if (state.depth > 2 && chance(rng, 0.02)) {
+    return rareRoomNode(state, rng);
   }
 
   return roomNode(state, rng);
@@ -60,7 +80,12 @@ function roomNode(state: GameState, rng: Rng): GameNode {
   const room = pick(rng, zone.rooms);
   const paragraphs = [...room.text, pick(rng, zone.details)];
 
-  if (state.sanity < 45) paragraphs.push(`« ${pick(rng, WHISPERS)} »`);
+  if (state.sanity < 45) {
+    const pool = flag(state, "specchio_visto")
+      ? [...WHISPERS, "ha sorriso, ricordi? ha passato il turno. a te."]
+      : WHISPERS;
+    paragraphs.push(`« ${pick(rng, pool)} »`);
+  }
 
   const choices: Choice[] = [];
 
@@ -79,10 +104,10 @@ function roomNode(state: GameState, rng: Rng): GameNode {
     },
   });
 
-  // Frugare: possibile oggetto, possibile prezzo.
+  // Frugare: possibile oggetto, possibile prezzo. La lanterna aiuta a vedere cosa tocchi.
   if (chance(rng, 0.55)) {
     const loot = rollLoot(state, rng);
-    const bad = chance(rng, 0.4);
+    const bad = chance(rng, has(state, "lanterna") ? 0.28 : 0.45);
     choices.push({
       id: "search",
       label: "Fruga nella stanza",
@@ -123,6 +148,21 @@ function roomNode(state: GameState, rng: Rng): GameNode {
             outcome:
               "Ti fermi. Respiri. Il cuore rallenta e i pensieri tornano tuoi. Ma il riposo, qui sotto, ha un odore — e qualcosa lo sta seguendo.",
           },
+    });
+  }
+
+  // Le bende: un uso solo, ma vero.
+  if (has(state, "bende") && state.sanity < 55) {
+    choices.push({
+      id: "bandage",
+      label: "Fascia le mani con le bende",
+      hint: "Odorano di canfora. E di chi le ha piegate con cura.",
+      effect: {
+        removeItems: ["bende"],
+        sanity: between(rng, 12, 18),
+        outcome:
+          "Ti fasci le mani, piano, come ti hanno insegnato in un ricordo che non trovi più. Non è la stoffa a curare: è il gesto. Per qualche minuto le tue mani sono di qualcuno che verrà salvato.",
+      },
     });
   }
 
@@ -220,6 +260,127 @@ function rollLoot(
 }
 
 /* ------------------------------------------------------------------ */
+/* Stanze rare                                                         */
+/* ------------------------------------------------------------------ */
+
+function rareRoomNode(state: GameState, rng: Rng): GameNode {
+  const room: RareRoom = pick(rng, RARE_ROOMS);
+  const choices: Choice[] = [];
+
+  if (room.id === "lucciole") {
+    choices.push(
+      {
+        id: "stay_light",
+        label: "Resta un poco, in mezzo alle luci",
+        hint: "Nessuno le ha mai viste due volte.",
+        effect: {
+          sanity: between(rng, 18, 26),
+          aggression: -2,
+          outcome:
+            "Resti. Le luci ti si posano addosso senza peso, e per qualche minuto il labirinto smette di essere il labirinto: è solo una stanza buia piena di piccole stelle pazienti. Quando esci, respiri come chi ha dormito una notte intera.",
+        },
+      },
+      {
+        id: "advance",
+        label: "Attraversa la stanza senza fermarti",
+        effect: {
+          depthDelta: 1,
+          outcome:
+            "Attraversi la stanza a testa bassa. Le luci ti si scostano davanti come acqua. Sulla porta, per un attimo, ti pare che una di loro ti segua. Poi ci ripensa.",
+        },
+      },
+    );
+  } else if (room.id === "telefono") {
+    choices.push(
+      {
+        id: "answer",
+        label: "Rispondi",
+        hint: "Squilla per te. Da quanto?",
+        effect: {
+          sanity: -between(rng, 6, 10),
+          aggression: -3,
+          addFlags: ["telefono_risposto"],
+          outcome:
+            "Sollevi la cornetta. Dall'altra parte, un respiro — e poi la tua voce, più vecchia, che dice in fretta: «Il ferro si trova sotto le assi. Il nome si paga. E quando lei ti guarda, tu guardala prima.» Click. Il filo, ora, esce dal pavimento tagliato di netto.",
+        },
+      },
+      {
+        id: "unplug",
+        label: "Strappa il filo",
+        effect: {
+          sanity: -4,
+          aggression: 1,
+          outcome:
+            "Strappi il filo dal pavimento. Il telefono continua a squillare per tre secondi buoni — a filo staccato — poi smette, offeso. Da qualche parte, in basso, qualcuno riappende con calma.",
+        },
+      },
+      {
+        id: "advance",
+        label: "Lascialo squillare e prosegui",
+        effect: {
+          depthDelta: 1,
+          sanity: -2,
+          outcome:
+            "Esci dalla stanza con lo squillo alle spalle. Continua a lungo, sempre più fioco, e smette solo quando ormai non potresti più tornare indietro a rispondere. Esattamente in quel momento.",
+        },
+      },
+    );
+  } else {
+    // Il dormiente: le cose che non hai ancora trovato, in fila ordinata.
+    const missing = rollLoot(state, rng);
+    choices.push(
+      {
+        id: "take",
+        label: "Prendi qualcosa dalla fila, senza svegliarlo",
+        hint: "In fondo, è roba tua. In un certo senso.",
+        effect: missing
+          ? {
+              addItems: [missing.id],
+              sanity: -8,
+              aggression: 1,
+              outcome:
+                "Allunghi la mano, piano. Il respiro del dormiente non cambia — ma mentre ti allontani con l'oggetto, senza voltarsi, con la tua voce impastata di sonno, dice: «Ridallo indietro quando arrivi. Io l'ho fatto.»",
+            }
+          : {
+              sanity: -10,
+              aggression: 1,
+              outcome:
+                "Ti avvicini, ma la fila di oggetti è vuota: solo impronte nella polvere, della forma esatta delle cose che hai già in tasca. Il dormiente sospira nel sonno. Sembra deluso.",
+            },
+      },
+      {
+        id: "wake",
+        label: "Sveglialo",
+        hint: "No.",
+        effect: {
+          sanity: -between(rng, 16, 22),
+          outcome:
+            "Gli tocchi la spalla. Il dormiente si volta lentissimo — e non ha la tua faccia: ha la faccia che avrai quando sarà finita. Ti guarda con una pietà insopportabile, mormora «ancora?», e si rimette a dormire. Te ne vai in fretta.",
+        },
+      },
+      {
+        id: "advance",
+        label: "Esci in punta di piedi",
+        effect: {
+          depthDelta: 1,
+          sanity: 2,
+          outcome:
+            "Esci come si esce dalla stanza di un malato: senza far rumore, senza guardare troppo. Che dorma. Uno di voi due, almeno.",
+        },
+      },
+    );
+  }
+
+  return {
+    zone: zoneFor(state.depth).name,
+    title: room.title,
+    paragraphs: [...room.text],
+    choices: choices.slice(0, 4),
+    kind: "room",
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* L'Entità                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -237,11 +398,24 @@ function entityNode(state: GameState, rng: Rng): GameNode {
       ? "Questa volta è più vicina. Conosce il tuo passo, ormai. Lo sta imparando a memoria."
       : "Non ti ha ancora scelto. Ma prende appunti.",
   ];
+  if (flag(state, "riconosciuto")) {
+    paragraphs.push(
+      "E c'è qualcosa di peggio della paura, nel modo in cui si volta verso di te: il riconoscimento. Vi siete già incontrati. È finita male. Per te.",
+    );
+  } else if (flag(state, "ha_visto")) {
+    paragraphs.push(
+      "Ma stavolta esita. L'hai guardata, una volta — nessuno la guarda — e da allora ti porta qualcosa che, nel suo vocabolario, somiglia al rispetto.",
+    );
+  }
   if (state.sanity < 45) paragraphs.push(`« ${pick(rng, WHISPERS)} »`);
 
   const choices: Choice[] = [];
 
-  const freezeSafe = !chance(rng, 0.45 + state.aggression * 0.05);
+  // Il consiglio del Custode — "mai dritto, quando senti l'acqua" — vale anche qui.
+  const freezeSafe = !chance(
+    rng,
+    0.45 + state.aggression * 0.05 - (flag(state, "custode_amico") ? 0.15 : 0),
+  );
   choices.push({
     id: "freeze",
     label: "Resta immobile e trattieni il fiato",
@@ -515,13 +689,20 @@ function pozzoNode(state: GameState, rng: Rng): GameNode {
     },
   });
 
+  const paragraphs = [
+    "Al centro di una sala circolare c'è un pozzo di pietra, la vera più liscia di quanto la pietra dovrebbe permettersi. Dall'imboccatura sale un'eco costante, appena sotto la soglia dell'udito.",
+    "Non è acqua che gocciola. È una voce. Sta parlando da prima che tu arrivassi, e continuerà dopo. Ma adesso — adesso sta parlando a te.",
+  ];
+  if (flag(state, "ha_ascoltato")) {
+    paragraphs.push(
+      "La voce si interrompe un istante quando entri. Poi, più piano, quasi con piacere: «Tu. Quello che ascolta. Il buio ci ha parlato di te.»",
+    );
+  }
+
   return {
     zone: zoneFor(state.depth).name,
     title: "Il pozzo che parla",
-    paragraphs: [
-      "Al centro di una sala circolare c'è un pozzo di pietra, la vera più liscia di quanto la pietra dovrebbe permettersi. Dall'imboccatura sale un'eco costante, appena sotto la soglia dell'udito.",
-      "Non è acqua che gocciola. È una voce. Sta parlando da prima che tu arrivassi, e continuerà dopo. Ma adesso — adesso sta parlando a te.",
-    ],
+    paragraphs,
     choices: choices.slice(0, 4),
     kind: "milestone",
   };
@@ -587,14 +768,26 @@ function finalDoorNode(state: GameState, rng: Rng): GameNode {
           },
   });
 
+  const paragraphs = [
+    "Il labirinto finisce. Non si apre: finisce, come una frase. Davanti a te, incassata nella roccia viva, una porta di ferro nero alta tre volte te, senza maniglia, con una sola serratura all'altezza del cuore.",
+    "Da sotto la soglia filtra aria fredda. Aria di fuori. Odora di pioggia recente e di rumore lontano — di tutte le cose che il labirinto non è.",
+    "La porta ti stava aspettando. Le porte, qui sotto, sono le uniche a non mentire mai: o si aprono, o no.",
+  ];
+  if (flag(state, "custode_amico")) {
+    paragraphs.push(
+      "Sulla soglia, tracciata col gesso, una piccola freccia indica la serratura. La calligrafia è lenta, paziente. I custodi ricordano le gentilezze.",
+    );
+  }
+  if (flag(state, "voce_del_pozzo") || flag(state, "ha_ascoltato")) {
+    paragraphs.push(
+      "«La porta teme due cose», diceva la voce. «La sua chiave, e il suo nome. Tutto il resto lo mangia.» Ora capisci perché te l'hanno detto.",
+    );
+  }
+
   return {
     zone: "La Porta",
     title: "La porta di ferro",
-    paragraphs: [
-      "Il labirinto finisce. Non si apre: finisce, come una frase. Davanti a te, incassata nella roccia viva, una porta di ferro nero alta tre volte te, senza maniglia, con una sola serratura all'altezza del cuore.",
-      "Da sotto la soglia filtra aria fredda. Aria di fuori. Odora di pioggia recente e di rumore lontano — di tutte le cose che il labirinto non è.",
-      "La porta ti stava aspettando. Le porte, qui sotto, sono le uniche a non mentire mai: o si aprono, o no.",
-    ],
+    paragraphs,
     choices: choices.slice(0, 4),
     kind: "final",
   };
@@ -604,7 +797,11 @@ function finalDoorNode(state: GameState, rng: Rng): GameNode {
 /* Applicazione delle scelte                                           */
 /* ------------------------------------------------------------------ */
 
-export function applyChoice(state: GameState, choice: Choice): GameState {
+export function applyChoice(
+  state: GameState,
+  choice: Choice,
+  nodeKind?: GameNode["kind"],
+): GameState {
   const e = choice.effect;
   const next: GameState = {
     ...state,
@@ -612,6 +809,7 @@ export function applyChoice(state: GameState, choice: Choice): GameState {
     flags: [...state.flags],
     log: [...state.log],
     nodeCount: state.nodeCount + 1,
+    entitySeen: (state.entitySeen ?? 0) + (nodeKind === "entity" ? 1 : 0),
   };
 
   if (e.removeItems) next.items = next.items.filter((i) => !e.removeItems!.includes(i));

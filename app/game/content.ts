@@ -184,6 +184,43 @@ export const ZONES: Zone[] = [
   },
 ];
 
+/**
+ * Stanze rare: compaiono circa una volta ogni cinquanta stanze.
+ * Sono ciò di cui i giocatori parlano quando risalgono.
+ */
+export interface RareRoom {
+  id: "lucciole" | "telefono" | "dormiente";
+  title: string;
+  text: string[];
+}
+
+export const RARE_ROOMS: RareRoom[] = [
+  {
+    id: "lucciole",
+    title: "La stanza delle lucciole",
+    text: [
+      "Apri una porta e il buio, per una volta, non è vuoto: centinaia di luci minuscole galleggiano a mezz'aria, lente, verdi-oro, come polvere che ha deciso di brillare.",
+      "Non sono lucciole. Non sono niente che tu conosca. Ma non hanno fame, e qui sotto è la cosa più vicina alla gentilezza.",
+    ],
+  },
+  {
+    id: "telefono",
+    title: "Il telefono",
+    text: [
+      "Al centro di una stanza spoglia, su un tavolino di formica, un telefono nero a disco. Il filo scende nel pavimento, dritto, verso il basso.",
+      "Sta squillando. Ha smesso di squillare per gli altri molto tempo fa: adesso squilla per te.",
+    ],
+  },
+  {
+    id: "dormiente",
+    title: "Il dormiente",
+    text: [
+      "In un angolo, su una branda militare, qualcuno dorme voltato verso il muro. Il respiro è lento, regolare, umano.",
+      "Indossa il tuo cappotto. Ha il tuo taglio di capelli. Accanto alla branda, in fila ordinata, le cose che non hai ancora trovato.",
+    ],
+  },
+];
+
 /** Sussurri mostrati quando la lucidità è bassa. */
 export const WHISPERS = [
   "sei già passato di qui. sei sempre passato di qui.",

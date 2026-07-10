@@ -34,6 +34,10 @@ export interface GameState {
   endingId?: string;
   lastOutcome?: string;
   log: string[];
+  /** Quante volte l'Entità ti ha trovato, in questa run. */
+  entitySeen?: number;
+  /** Se valorizzata (YYYY-MM-DD), è la discesa del giorno: seme condiviso da tutti. */
+  dailyDate?: string;
 }
 
 export interface ChoiceEffect {

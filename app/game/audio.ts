@@ -43,8 +43,11 @@ class Soundtrack {
     const ctx = new AudioContext();
     this.ctx = ctx;
 
+    // Fade-in del master: partire a volume pieno produce una discontinuità
+    // nel primo campione — il gracchio che si sente a volte all'avvio.
     this.master = ctx.createGain();
-    this.master.gain.value = 0.8;
+    this.master.gain.setValueAtTime(0, ctx.currentTime);
+    this.master.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.7);
     this.master.connect(ctx.destination);
 
     /* ---- drone: due fondamentali che battono + una quinta lontana ---- */
@@ -158,8 +161,10 @@ class Soundtrack {
 
   private scheduleBeat() {
     if (!this.ctx) return;
-    this.thump(this.ctx.currentTime + 0.02, this.heartVolume);
-    this.thump(this.ctx.currentTime + 0.3, this.heartVolume * 0.6);
+    // +0.08: su un contesto appena creato currentTime non è ancora avanzato,
+    // e schedulare troppo vicino a "adesso" finisce nel passato → glitch.
+    this.thump(this.ctx.currentTime + 0.08, this.heartVolume);
+    this.thump(this.ctx.currentTime + 0.36, this.heartVolume * 0.6);
     this.beatTimer = setTimeout(() => this.scheduleBeat(), (60 / this.bpm) * 1000);
   }
 
@@ -215,14 +220,17 @@ class Soundtrack {
   /** "Tock" secco a ogni scelta: colpo basso + tick alto. */
   click() {
     if (!this.ctx || !this.master) return;
-    const t = this.ctx.currentTime;
+    // 30ms nel futuro: impercettibile, ma tiene il primo click (quello che
+    // crea il contesto) fuori dalla finestra di avvio del thread audio.
+    const t = this.ctx.currentTime + 0.03;
 
     const thud = this.ctx.createOscillator();
     thud.type = "triangle";
     thud.frequency.setValueAtTime(190, t);
     thud.frequency.exponentialRampToValueAtTime(65, t + 0.08);
     const thudGain = this.ctx.createGain();
-    thudGain.gain.setValueAtTime(0.22, t);
+    thudGain.gain.setValueAtTime(0, t);
+    thudGain.gain.linearRampToValueAtTime(0.22, t + 0.003);
     thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
     thud.connect(thudGain);
     thudGain.connect(this.master);
@@ -237,7 +245,8 @@ class Soundtrack {
     tickFilter.frequency.value = 1900;
     tickFilter.Q.value = 4;
     const tickGain = this.ctx.createGain();
-    tickGain.gain.setValueAtTime(0.08, t);
+    tickGain.gain.setValueAtTime(0, t);
+    tickGain.gain.linearRampToValueAtTime(0.08, t + 0.002);
     tickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
     tick.connect(tickFilter);
     tickFilter.connect(tickGain);
