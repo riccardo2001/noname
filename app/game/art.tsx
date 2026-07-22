@@ -71,6 +71,7 @@ type UrlOf = (s: string) => string;
 function artFor(node: GameNode, rng: Rng, dread: number, u: UrlOf) {
   if (node.kind === "final") return ironDoor(u);
   if (node.kind === "entity") return entity(rng, u);
+  if (node.zone === "Il Sottofondo") return sottofondo(rng, u);
   switch (node.title) {
     case "Il Custode":
       return custode(u);
@@ -84,6 +85,10 @@ function artFor(node: GameNode, rng: Rng, dread: number, u: UrlOf) {
       return phone(u);
     case "Il dormiente":
       return sleeper(u);
+    case "La voragine":
+      return chasm(u);
+    case "Il corridoio che si ripiega":
+      return folding(u);
     default:
       return corridor(rng, node.zone, dread, u);
   }
@@ -263,6 +268,80 @@ function sleeper(u: UrlOf) {
       <circle cx={30} cy={103} r={1.6} fill={BONE} opacity={0.18} />
     </>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* La voragine, il Sottofondo, il corridoio che si ripiega             */
+/* ------------------------------------------------------------------ */
+
+function chasm(u: UrlOf) {
+  return (
+    <>
+      {/* la stanza, appena rischiarata attorno al buco */}
+      <ellipse cx={160} cy={70} rx={120} ry={54} fill={u("bone")} opacity={0.07} />
+      {/* il buco: nero su nero, bordi frastagliati sfocati */}
+      <ellipse cx={160} cy={78} rx={70} ry={30} fill="#000" opacity={0.85} filter={u("b5")} />
+      <ellipse cx={160} cy={80} rx={52} ry={22} fill="#000" opacity={0.98} filter={u("b2")} />
+      {/* qualcosa di grande, molto in fondo, che dorme */}
+      <ellipse cx={160} cy={88} rx={20} ry={6} fill={u("ember")} opacity={0.18} />
+      {/* il bordo più vicino, un labbro di pietra */}
+      <path d="M 96 70 Q 160 40 224 70" fill="none" stroke={BONE} strokeOpacity={0.14} filter={u("b2")} />
+    </>
+  );
+}
+
+function sottofondo(rng: Rng, u: UrlOf) {
+  const els: ReactNode[] = [
+    // il pelo dell'acqua: una banda pallida orizzontale
+    <rect key="water" x={0} y={74} width={320} height={46} fill={u("bone")} opacity={0.06} />,
+    <line key="line" x1={20} y1={74} x2={300} y2={74} stroke={BONE} strokeOpacity={0.12} filter={u("b2")} />,
+    // riflesso freddo sulla superficie
+    <ellipse key="sheen" cx={160} cy={80} rx={110} ry={8} fill={u("bone")} opacity={0.05} />,
+  ];
+  // sagome sommerse, in fila: i dormienti
+  for (let i = 0; i < 5; i++) {
+    const x = 60 + i * 48 + between(rng, -4, 4);
+    els.push(
+      <ellipse key={`d${i}`} cx={x} cy={94} rx={13} ry={5} fill="#000" opacity={0.55} filter={u("b2")} />,
+      <circle key={`h${i}`} cx={x} cy={88} r={3.5} fill="#000" opacity={0.6} filter={u("b2")} />,
+    );
+  }
+  // gocce che cadono verso l'alto
+  for (let i = 0; i < 4; i++) {
+    const x = between(rng, 50, 270);
+    els.push(<circle key={`u${i}`} cx={x} cy={between(rng, 40, 66)} r={0.9} fill={BONE} opacity={0.25} />);
+  }
+  return els;
+}
+
+function folding(u: UrlOf) {
+  const els: ReactNode[] = [
+    <ellipse key="fog" cx={160} cy={62} rx={70} ry={44} fill={u("bone")} opacity={0.06} />,
+  ];
+  // corridoi concentrici che rientrano su sé stessi: la piega
+  for (let i = 0; i < 5; i++) {
+    const s = 1 - i * 0.17;
+    els.push(
+      <rect
+        key={`r${i}`}
+        x={160 - 96 * s}
+        y={62 - 46 * s}
+        width={192 * s}
+        height={92 * s}
+        rx={6}
+        fill="none"
+        stroke={BONE}
+        strokeOpacity={0.05 + i * 0.03}
+        filter={u("b2")}
+      />,
+    );
+  }
+  // l'impronta fresca che punta avanti — verso il centro che è anche l'inizio
+  els.push(
+    <ellipse key="print" cx={160} cy={104} rx={3} ry={5} fill="#000" opacity={0.7} filter={u("b2")} />,
+    <ellipse key="core" cx={160} cy={62} rx={10} ry={8} fill="#000" opacity={0.6} filter={u("b5")} />,
+  );
+  return els;
 }
 
 /* ------------------------------------------------------------------ */

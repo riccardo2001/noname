@@ -221,6 +221,52 @@ export const RARE_ROOMS: RareRoom[] = [
   },
 ];
 
+/**
+ * Il Sottofondo: il sotto-livello nascosto in cui si precipita dalla voragine.
+ * Non è sulla discesa normale — è *sotto* il labirinto, dove tutto è allagato
+ * e dove la Ricorrenza ristagna. Ci si attraversano poche stanze, poi si risale.
+ */
+export const SOTTOFONDO: Zone = {
+  name: "Il Sottofondo",
+  minDepth: 0,
+  rooms: [
+    {
+      title: "L'acqua ferma",
+      text: [
+        "Atterri in piedi in un'acqua nera alta fino al ginocchio. Non fa un'onda, non fa un cerchio: si limita a lasciarti entrare, come se ti aspettasse.",
+        "Sopra di te, il buco da cui sei caduto si è già richiuso. Qui sotto il labirinto non è cresciuto. È marcito.",
+      ],
+    },
+    {
+      title: "I dormienti sommersi",
+      text: [
+        "L'acqua qui è trasparente, e poco sotto la superficie galleggiano delle figure: dormono, gli occhi chiusi, ognuna con addosso un cappotto grigio, ognuna con la tua faccia a un'età diversa.",
+        "Sono in fila, ordinate, in attesa. Una ha appena cominciato a schiudere gli occhi. Passi oltre in fretta, cercando di non contarle.",
+      ],
+    },
+    {
+      title: "La sala delle chiavi",
+      text: [
+        "Centinaia di chiavi arrugginite pendono da fili, a diverse altezze, girando piano nella corrente che non c'è. Una sola, lo sai, apre davvero qualcosa.",
+        "Le altre, se le provi, aprono porte che è meglio restino chiuse.",
+      ],
+    },
+    {
+      title: "Il respiro del fondo",
+      text: [
+        "Le pareti, qui, si alzano e si abbassano lente, e l'acqua sale e scende con loro. Non è una stanza. È l'interno di qualcosa che respira, e tu sei ciò che ha appena inghiottito.",
+        "In fondo, dove l'acqua è più scura, qualcosa di grande si gira nel sonno. Faresti bene a risalire prima che finisca di svegliarsi.",
+      ],
+    },
+  ],
+  details: [
+    "L'acqua ti arriva ai fianchi, tiepida come un fiato. Preferiresti fosse fredda.",
+    "Ogni tuo passo solleva dal fondo una nuvola di qualcosa che non guardi.",
+    "Il soffitto è basso, gocciolante, e le gocce cadono verso l'alto.",
+    "Da qualche parte, sotto di te, la voce del pozzo continua il suo discorso. Da qui si capiscono le parole.",
+  ],
+};
+
 /** Sussurri mostrati quando la lucidità è bassa. */
 export const WHISPERS = [
   "sei già passato di qui. sei sempre passato di qui.",
@@ -231,6 +277,44 @@ export const WHISPERS = [
   "resta. c'è una nicchia della tua misura.",
   "la luce in fondo è accesa per te. da sempre.",
   "smetti di contare le porte.",
+];
+
+/** Pagine comuni del diario strappato: curano poco, ma non mentono. */
+export const DIARY_COMMON = [
+  {
+    text: "Il diario ha una pagina nuova, con la tua calligrafia: una mappa parziale, tre svolte sicure, un avvertimento sottolineato due volte — «alla porta serve ferro, o un nome». Lo richiudi prima che scriva altro.",
+    sanity: 4,
+  },
+  {
+    text: "Una pagina di conti: tacche a gruppi di cinque, centinaia. In fondo, la tua grafia: «giorni? porte? persone? non lo so più. ma il numero non scende mai». Chiudi il diario piano.",
+    sanity: 2,
+  },
+  {
+    text: "Una ricetta della minestra di tua nonna, scritta con cura, fuori posto qui come un fiore su una lapide. Per un istante senti l'odore del brodo, della sua cucina, di casa. Poi passa. Ma ti resta addosso qualcosa di caldo.",
+    sanity: 6,
+  },
+  {
+    text: "Una pagina scritta in uno specchio: la leggi solo di riflesso, nella lama della lanterna. Dice: «la persona che tiene questo diario e la persona che lo ha iniziato non sono più la stessa. Fai attenzione a quale delle due decide.»",
+    sanity: 1,
+  },
+  {
+    text: "Solo un disegno: la pianta del labirinto vista dall'alto. Non è un labirinto. È la sezione di un orecchio. Richiudi il diario in fretta, ma la forma ti resta negli occhi.",
+    sanity: 0,
+  },
+] as const;
+
+/** Righe ambientali quando l'Entità ti segue, ma da lontano. */
+export const STALK_FAR = [
+  "Non c'è nessuno, nella stanza. Ma le tue orme sul pavimento polveroso, quelle di prima, sono state calpestate da altre orme. Più grandi. Fresche.",
+  "Da qualche parte alle tue spalle, un rumore che si ferma un istante dopo che ti fermi tu. Provi di nuovo: fai due passi, ti blocchi. Il rumore fa due passi. Si blocca.",
+  "L'aria in fondo alla stanza è più fredda, e ha la forma sbagliata, come una tenda dietro cui qualcuno trattiene il respiro aspettando che tu vada oltre.",
+];
+
+/** Righe ambientali quando la caccia è ormai serrata. */
+export const STALK_CLOSE = [
+  "È vicina. Non la vedi ancora, ma la senti nel modo in cui la stanza sembra trattenere il fiato per te, al posto tuo. Non ti ha trovato. Non ti ha mai perso.",
+  "Il tuo cuore batte forte — e mezzo secondo dopo, dal buio dietro di te, qualcosa batte in risposta. Più lento. Più grande. Paziente.",
+  "C'è un odore, ora, che ti segue di stanza in stanza: terra bagnata e ferro. È l'odore che avevi addosso l'ultima volta che ti ha toccato. Se lo ricorda. Lo sta rifacendo.",
 ];
 
 export const ADVANCE_LABELS = [
@@ -283,4 +367,77 @@ export const ENDINGS: Record<string, Ending> = {
     text: "Guardi la porta e non provi niente. Fuori c'è rumore, fretta, gente che non sa. Qui sotto c'è una nicchia della tua misura, un letto rifatto con cura, una parola ricamata in rosso. Ti volti e torni indietro. RESTA, diceva. Avevano ragione.",
     tone: "dark",
   },
+  primo_nome: {
+    title: "Il Primo Nome",
+    text: "Non pronunci il nome del Custode, né la parola del patto. Pronunci il tuo — quello vero, quello che il labirinto ti stava consumando piano da quando sei entrato. Lo dici a voce alta, e per la prima volta la porta non si limita ad aprirsi: si arrende. Esci nell'alba, e dietro di te il labirinto non ricomincia a mescolarsi. Si ferma. Non ci sarà un prossimo. Hai spezzato la ruota.",
+    tone: "light",
+  },
+  ruota: {
+    title: "La Ruota Gira",
+    text: "Hai capito tutto: chi dorme sotto il proprio cappotto, chi chiama al telefono, chi siede all'incrocio col registro. Sei tu — sei sempre stato tu, in ogni turno. Ma capirlo e reggerlo sono due cose diverse, e sei arrivato alla porta con troppo poco di te. Ti siedi. Apri il registro a una pagina bianca. Da qualche parte, molto sopra, qualcuno sta per appendere un cappotto grigio e cominciare a scendere. Lo aspetterai. Con pazienza. Come hanno aspettato te.",
+    tone: "grey",
+  },
 };
+
+/**
+ * I frammenti della Ricorrenza: la storia sotto la storia. Ognuno si sblocca
+ * la prima volta che compare il flag corrispondente, e resta nel codex del
+ * menu tra una discesa e l'altra. Insieme dicono chi sei davvero, quaggiù.
+ */
+export interface LoreFragment {
+  id: string;
+  flag: string;
+  title: string;
+  text: string;
+}
+
+export const LORE_FRAGMENTS: LoreFragment[] = [
+  {
+    id: "il-buio-parla",
+    flag: "ha_ascoltato",
+    title: "Ciò che dice il buio",
+    text: "Il buio parla di porte e di chiavi, di un custode che aspetta e di un'acqua che ricorda. Racconta sempre la stessa storia, a chiunque scenda. È la tua storia. L'hai già ascoltata. La ascolterai ancora.",
+  },
+  {
+    id: "il-turno",
+    flag: "specchio_visto",
+    title: "Chi passa il turno",
+    text: "Nello specchio, un minuto fa, c'eri già tu: coprivi il vetro con il lenzuolo e ti voltavi a sorridere, con il sollievo di chi finalmente passa il turno a qualcun altro. Quel qualcuno sei sempre tu, un giro più avanti.",
+  },
+  {
+    id: "due-cose",
+    flag: "voce_del_pozzo",
+    title: "Le due cose che teme la porta",
+    text: "La porta teme la sua chiave e il suo nome. La chiave si trova, in fondo, con fatica. Il nome invece lo avevi già prima di entrare — era il tuo. Il labirinto te lo mangia piano, un corridoio alla volta, perché senza nome non si esce.",
+  },
+  {
+    id: "dentro-lei",
+    flag: "ha_visto",
+    title: "Cosa c'è dentro l'Entità",
+    text: "Dentro di lei ci sono corridoi, e in fondo ai corridoi una porta di ferro. Non ti dà la caccia per ucciderti: ti insegue per riportarti a casa. La sua casa. Che a furia di scendere è diventata anche la tua.",
+  },
+  {
+    id: "la-chiamata",
+    flag: "telefono_risposto",
+    title: "La voce al telefono",
+    text: "La voce era la tua, più vecchia di una vita intera, e chiamava dal fondo per avvertirti. Ma tu sei già la voce, e sei già quello che risponde: le due estremità dello stesso filo, che scende dritto nel pavimento, verso il basso, per sempre.",
+  },
+  {
+    id: "chi-dorme",
+    flag: "dormiente_visto",
+    title: "Chi dorme sulla branda",
+    text: "Il dormiente aveva la faccia che avrai tu alla fine. Ogni discesa ne lascia uno addormentato, sotto il proprio cappotto grigio, con accanto le cose che il prossimo dovrà trovare. Aspetta solo che qualcuno arrivi a dargli il cambio.",
+  },
+  {
+    id: "il-custode-eri-tu",
+    flag: "m_custode",
+    title: "Chi è il Custode",
+    text: "Il Custode è il turno precedente. Ha camminato dove cammini tu, ha chiesto quello che chiedi tu, ha pagato quello che pagherai. Ora siede all'incrocio, indica la strada e aspetta chi prenderà il suo posto. Sa già che arriverai.",
+  },
+  {
+    id: "il-prezzo",
+    flag: "patto",
+    title: "Il prezzo del patto",
+    text: "Il nome che il Custode ti posa sotto la lingua non è un dono: è un anticipo. Chi lo pronuncia alla porta non esce — resta, come nuovo custode, finché non troverà qualcuno a cui darlo. Così gira la ruota. Così è sempre girata.",
+  },
+];

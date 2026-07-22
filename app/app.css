@@ -13,6 +13,7 @@
   --color-ember: #c2453b;
   --color-ember-dim: #7a2b25;
   --color-sick: #7d9c6b;
+  --color-gold: #d8c98f;
 }
 
 html,
@@ -213,4 +214,55 @@ body {
   margin-left: 2px;
   color: var(--color-ember);
   animation: caret 1.1s infinite;
+}
+
+/* ------- la caccia: alone rosso che respira ai bordi ------- */
+
+@keyframes stalk-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.stalk-veil {
+  background: radial-gradient(
+    ellipse 100% 85% at 50% 50%,
+    transparent 55%,
+    rgb(194 69 59 / 0.5) 130%
+  );
+  animation: stalk-breathe 2.4s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* ------- contraccolpo: un lampo secco quando incassi ------- */
+
+@keyframes hit-flash {
+  0% { opacity: 0; }
+  8% { opacity: calc(0.5 * var(--hit, 0.5)); }
+  100% { opacity: 0; }
+}
+
+.hit-flash {
+  background: radial-gradient(
+    ellipse at center,
+    rgb(194 69 59 / 0.35) 0%,
+    rgb(150 20 15 / 0.55) 100%
+  );
+  animation: hit-flash 0.6s ease-out forwards;
+}
+
+/* ------- accessibilità: rispetta chi soffre il movimento ------- *
+ * Tremolii, deformazioni, grana e glitch possono dare nausea:
+ * qui li sostituiamo con variazioni di sola opacità, o li fermiamo. */
+
+@media (prefers-reduced-motion: reduce) {
+  .veil::after { animation: none; opacity: 0.04; }
+  .sanity-mid,
+  .sanity-low { animation: none; }
+  .sanity-high { animation: breathe-slow 7s ease-in-out infinite; }
+  .glitch { animation: none; }
+  .glitch::before,
+  .glitch::after { display: none; }
+  .stalk-veil { animation: stalk-breathe 6s ease-in-out infinite; }
+  .rise { animation-duration: 0.4s; }
+  .flicker { animation: none; }
 }

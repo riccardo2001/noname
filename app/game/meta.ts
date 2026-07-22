@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { mixSeed } from "./rng";
+import { LORE_FRAGMENTS } from "./content";
 
 /**
  * Memoria persistente tra le run: il labirinto ricorda chi sei stato.
@@ -21,6 +22,8 @@ export interface MetaState {
   lastEndingId?: string;
   /** Date (YYYY-MM-DD) delle discese del giorno completate. */
   dailiesDone: string[];
+  /** Id dei frammenti della Ricorrenza scoperti almeno una volta. */
+  fragments: string[];
 }
 
 const KEY = "noname.meta.v1";
@@ -37,6 +40,7 @@ function emptyMeta(): MetaState {
     entityMet: 0,
     endingsSeen: [],
     dailiesDone: [],
+    fragments: [],
   };
 }
 
@@ -77,8 +81,32 @@ export function recordRunEnd(state: GameState): MetaState {
   if (state.dailyDate && !meta.dailiesDone.includes(state.dailyDate)) {
     meta.dailiesDone.push(state.dailyDate);
   }
+  // Sweep finale: assicura che ogni frammento sbloccato sia registrato.
+  for (const fr of LORE_FRAGMENTS) {
+    if (state.flags.includes(fr.flag) && !meta.fragments.includes(fr.id)) {
+      meta.fragments.push(fr.id);
+    }
+  }
   saveMeta(meta);
   return meta;
+}
+
+/**
+ * Registra i frammenti della Ricorrenza sbloccati dai flag correnti.
+ * Chiamata dopo ogni scelta: la scoperta si conserva anche se abbandoni.
+ * Ritorna gli id appena scoperti (per il messaggio di scoperta).
+ */
+export function recordFragmentsFromFlags(flags: string[]): string[] {
+  const meta = loadMeta();
+  const added: string[] = [];
+  for (const fr of LORE_FRAGMENTS) {
+    if (flags.includes(fr.flag) && !meta.fragments.includes(fr.id)) {
+      meta.fragments.push(fr.id);
+      added.push(fr.id);
+    }
+  }
+  if (added.length) saveMeta(meta);
+  return added;
 }
 
 /* ------------------------------------------------------------------ */

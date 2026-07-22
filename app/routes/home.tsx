@@ -5,7 +5,7 @@ import { newGame } from "../game/engine";
 import { loadRun, saveRun, clearRun } from "../game/storage";
 import { audioPref, getSoundtrack } from "../game/audio";
 import { dailySeed, loadMeta, todayString, type MetaState } from "../game/meta";
-import { ENDINGS } from "../game/content";
+import { ENDINGS, LORE_FRAGMENTS } from "../game/content";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -32,6 +32,13 @@ export default function Home() {
     setHasRun(!!run && run.status === "alive" && run.nodeCount > 0);
     setMeta(loadMeta());
   }, []);
+
+  // Sul pointerdown (prima del click e della navigazione) accende il contesto
+  // audio: il tonfo fisico dell'hardware cade mentre il dito è ancora premuto,
+  // nella finestra di silenzio, e non all'inizio vero della discesa.
+  function warmAudio() {
+    if (audioPref()) getSoundtrack().start();
+  }
 
   function clickSound() {
     if (audioPref()) {
@@ -104,6 +111,7 @@ export default function Home() {
         >
           {hasRun && (
             <button
+              onPointerDown={warmAudio}
               onClick={() => enterMaze(false)}
               className="choice cursor-pointer border border-(--color-ember-dim) bg-(--color-coal) px-6 py-4 text-left font-mono text-base tracking-widest text-(--color-bone) uppercase"
             >
@@ -112,6 +120,7 @@ export default function Home() {
             </button>
           )}
           <button
+            onPointerDown={warmAudio}
             onClick={() => enterMaze(true)}
             className="choice cursor-pointer border border-(--color-smoke) bg-(--color-coal) px-6 py-4 text-left font-mono text-base tracking-widest text-(--color-bone) uppercase"
           >
@@ -119,6 +128,7 @@ export default function Home() {
             {hasRun ? "Nuova discesa" : "Inizia la discesa"}
           </button>
           <button
+            onPointerDown={warmAudio}
             onClick={enterDaily}
             className="choice cursor-pointer border border-(--color-smoke) bg-(--color-coal) px-6 py-3 text-left font-mono text-sm tracking-widest text-(--color-bone) uppercase"
           >
@@ -187,6 +197,41 @@ export default function Home() {
                         ———
                       </span>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {meta && meta.fragments.length > 0 && (
+          <div className="rise mt-12 w-full text-left" style={{ animationDelay: "1.2s" }}>
+            <p className="text-center font-mono text-[10px] tracking-[0.45em] text-(--color-gold)/80 uppercase">
+              la ricorrenza · {meta.fragments.length}/{LORE_FRAGMENTS.length}
+            </p>
+            <p className="mt-2 text-center font-serif text-sm text-(--color-ash)/70 italic">
+              Ciò che hai ricomposto di questo posto. E di te.
+            </p>
+            <div className="mt-5 space-y-4">
+              {LORE_FRAGMENTS.map((fr) => {
+                const known = meta.fragments.includes(fr.id);
+                return known ? (
+                  <div key={fr.id} className="border-l-2 border-(--color-gold)/40 pl-4">
+                    <p className="font-mono text-[11px] tracking-[0.25em] text-(--color-gold) uppercase">
+                      ⟡ {fr.title}
+                    </p>
+                    <p className="mt-1 font-serif text-base leading-snug text-(--color-ash)">
+                      {fr.text}
+                    </p>
+                  </div>
+                ) : (
+                  <div key={fr.id} className="border-l-2 border-(--color-smoke) pl-4">
+                    <p className="font-mono text-[11px] tracking-[0.4em] text-(--color-ash)/35 uppercase">
+                      ⟡ ———
+                    </p>
+                    <p className="mt-1 font-serif text-base text-(--color-ash)/30 italic">
+                      un frammento che non hai ancora vissuto.
+                    </p>
                   </div>
                 );
               })}

@@ -27,6 +27,8 @@ class Soundtrack {
   private droneGain: GainNode | null = null;
   private noiseGain: GainNode | null = null;
   private shimmerGain: GainNode | null = null;
+  private stalkGain: GainNode | null = null;
+  private stalkPulse: GainNode | null = null;
   private heartVolume = 0.2;
   private bpm = 46;
   private beatTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,9 +56,11 @@ class Soundtrack {
     const ctx = new AudioContext({ latencyHint: "playback" });
     this.ctx = ctx;
 
-    // Tutto parte 150ms nel futuro: durante il warm-up dell'hardware il
-    // contesto renderizza silenzio, e un glitch nel silenzio non si sente.
-    const t0 = ctx.currentTime + 0.15;
+    // Tutto parte 220ms nel futuro: durante il warm-up dell'hardware (e il
+    // tonfo fisico dell'accensione del DAC) il contesto renderizza silenzio.
+    // Creando il contesto sul pointerdown del bottone, questa finestra cade
+    // mentre il dito è ancora premuto, prima dell'inizio vero della discesa.
+    const t0 = ctx.currentTime + 0.22;
     this.readyAt = t0;
 
     // Fade-in del master: partire a volume pieno produce una discontinuità
@@ -139,31 +143,46 @@ class Soundtrack {
     shimmer.start(t0);
     vib.start(t0);
 
+    /* ---- strato della caccia: una pulsazione bassa quando sei braccato ---- */
+    const stalk = ctx.createOscillator();
+    stalk.type = "sine";
+    stalk.frequency.value = 43.65; // sotto il drone: si sente nel petto, non nelle orecchie
+    this.stalkGain = ctx.createGain();
+    this.stalkGain.gain.value = 0; // muto finché non sei seguito
+    stalk.connect(this.stalkGain);
+    this.stalkGain.connect(this.master);
+    stalk.start(t0);
+
+    // Il "respiro" della presenza: modula il volume dello strato, ma la sua
+    // profondità è a zero quando la caccia è zero — così non suona mai a vuoto.
+    const pulse = ctx.createOscillator();
+    pulse.frequency.value = 0.9;
+    this.stalkPulse = ctx.createGain();
+    this.stalkPulse.gain.value = 0;
+    pulse.connect(this.stalkPulse);
+    this.stalkPulse.connect(this.stalkGain.gain);
+    pulse.start(t0);
+
     this.scheduleBeat();
     this.scheduleDrip();
   }
 
   suspend() {
-    if (this.ctx?.state === "running") void this.ctx.suspend();
+    // NON sospendere l'hardware: spegnere e riaccendere lo stream di output
+    // produce un tonfo fisico a ogni rientro. Silenziamo con una rampa e
+    // teniamo il contesto vivo.
+    if (!this.ctx || !this.master) return;
+    this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.25);
   }
 
   resume() {
-    if (this.ctx?.state !== "suspended") return;
-    const ctx = this.ctx;
-    // Anche il riavvio dell'hardware dopo una suspend gracchia: si riparte
-    // in silenzio e si riemerge quando il thread audio è di nuovo caldo.
-    void ctx.resume().then(() => {
-      if (!this.master) return;
-      const t = ctx.currentTime;
-      this.readyAt = Math.max(this.readyAt, t + 0.15);
-      this.master.gain.cancelScheduledValues(t);
-      this.master.gain.setValueAtTime(0, t);
-      this.master.gain.setValueAtTime(0, this.readyAt);
-      this.master.gain.linearRampToValueAtTime(
-        this.muted ? 0 : 0.8,
-        this.readyAt + 0.5,
-      );
-    });
+    if (!this.ctx || !this.master) return;
+    // Il browser può aver sospeso da solo il contesto (tab in background):
+    // qui resume() è un no-op se è già attivo, quindi non riaccende l'hardware.
+    if (this.ctx.state === "suspended") void this.ctx.resume();
+    this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.master.gain.setTargetAtTime(this.muted ? 0 : 0.8, this.ctx.currentTime, 0.3);
   }
 
   setMuted(muted: boolean) {
@@ -188,6 +207,17 @@ class Soundtrack {
       2.5,
     );
     this.droneGain?.gain.setTargetAtTime(0.05 + aggression * 0.006, t, 1.5);
+  }
+
+  /** La pressione della caccia: 0 = ti ha perso, sale mentre ti segue. */
+  setHunt(level: number) {
+    if (!this.ctx || !this.stalkGain || !this.stalkPulse) return;
+    const t = this.ctx.currentTime;
+    const base = level <= 0 ? 0 : 0.03 + Math.min(level, 5) * 0.018;
+    // La profondità del respiro sta sotto il livello base: il volume oscilla
+    // ma non torna mai a zero né si inverte. A caccia zero, tutto è muto.
+    this.stalkGain.gain.setTargetAtTime(base, t, 1.2);
+    this.stalkPulse.gain.setTargetAtTime(base * 0.6, t, 1.2);
   }
 
   /* ---- battito cardiaco: lub-dub ---- */
